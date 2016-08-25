@@ -109,7 +109,6 @@ bool check_redirect(vector<string>& vec){
 }
 
 static void run(vector<string> vec, int in, int out) {
-
 	char** argv = new char*[vec.size() + 1];
 	int i = 0;
 	for (vector<string>::iterator a = vec.begin(); a<vec.end(); a++){
@@ -118,64 +117,73 @@ static void run(vector<string> vec, int in, int out) {
 	}
 	argv[vec.size()] = NULL;
 
-
 	dup2(in, 0);   /* <&in  : child reads from in */
 	dup2(out, 1); /* >&out : child writes to out */
-	if (vec[0].compare("cd") == 0){
-		if (vec.size()>1){
-			if (vec[1].compare("~") == 0)
-				chdir(getenv("HOME"));
-			else
-				chdir(vec[1].c_str());
-		}
-	}
-	else if (vec[0].compare("echo") == 0){
-		for (vector<string>::iterator a = vec.begin() + 1; a < vec.end(); a++){
-			cout << (*a) << " ";
-		}
-		cout << endl;
-
-	}
-	else{
-		int status;
-		int pid = fork();
-		if (pid == 0){
-			execvp(argv[0], argv);
-			perror("Unable to execute the command");
-			exit(EXIT_FAILURE);
-		}
-		wait(&status);
-	}
-	exit(0);
+	execvp(argv[0], argv);
+	perror("Unable to execute the command");
+	exit(EXIT_FAILURE);
 }
 
 void run_pipeline(vector< vector<string> > command){
 	int n = command.size();
+	if(n==1){
+		vector<string> vec = command[0];
+		if (vec[0].compare("cd") == 0){
+			if (vec.size()>1){
+				if (vec[1].compare("~") == 0)
+					chdir(getenv("HOME"));
+				else
+					chdir(vec[1].c_str());
+			}
+			return;
+		}
+		if (vec[0].compare("echo") == 0){
+			for (vector<string>::iterator a = vec.begin() + 1; a < vec.end(); a++){
+				cout << (*a) << " ";
+			}
+			cout << endl;
+			return;
+		}
+		
+	}
+	
+
+
+
 	int i, in = 0; /* the first command reads from stdin */
 	for (i = 0; i < n; ++i) {
 		int status;
 		int fd[2]; /* in/out pipe ends */
 		pid_t pid; /* child's pid */
-
-		pipe(fd);
-
-		pid = fork();
-		if (pid == 0) {
-			/* run command[i] in the child process */
-			if (i != 0)
-				close(fd[0]); /* close unused read end of the pipe */
-			if (i == (n - 1))
-				run(command[i], in, 1); /* $ command < in */
-			else
-				run(command[i], in, fd[1]); /* $ command < in > fd[1] */
+		vector<string> vec = command[i];
+		if (vec[0].compare("cd") != 0 ){
+			pipe(fd);
+			pid = fork();
+			if (pid == 0) {
+				/* run command[i] in the child process */
+				if (i != 0)
+					close(fd[0]); /* close unused read end of the pipe */
+				if (i == (n - 1))
+					run(command[i], in, 1); /* $ command < in */
+				else
+					run(command[i], in, fd[1]); /* $ command < in > fd[1] */
+			}
+			else { /* parent */			
+				close(fd[1]); /* close unused write end of the pipe */
+				if (i != 0)
+					close(in);    /* close unused read end of the previous pipe */
+				in = fd[0]; /* the next command reads from here */
+			}
+			wait(&status);
 		}
-		else { /* parent */
-			close(fd[1]); /* close unused write end of the pipe */
-			if (i != 0)
-				close(in);    /* close unused read end of the previous pipe */
-			in = fd[0]; /* the next command reads from here */
+		else{
+			if (vec.size()>1){
+				if (vec[1].compare("~") == 0)
+					chdir(getenv("HOME"));
+				else
+					chdir(vec[1].c_str());
+			}
 		}
-		wait(&status);
 	}
 }
 
