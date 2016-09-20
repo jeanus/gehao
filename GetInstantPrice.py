@@ -1,6 +1,6 @@
-https://www.tutorialspoint.com/execute_python_online.php
-
-
+# Hello World program in Python
+    
+# -*- coding: UTF-8 -*-
 import sys, urllib
 
 stocks= ["600271",
@@ -49,6 +49,8 @@ stocks= ["600271",
 "002392",
 "000525",
 "002193"]
+
+fileHandle = open ( 'test.txt', 'w' ) 
 for stock in stocks :
 	if stock.startswith("6"):
 		stock = "sh"+stock
@@ -57,4 +59,5 @@ for stock in stocks :
 	url = "http://hq.sinajs.cn/list="+stock
 	wp = urllib.urlopen(url)
 	content = str(wp.read())
-	print stock+","+content.split(",")[3]
+	fileHandle.write(stock[2:]+"\t"+content.split(",")[3]+"\n")
+fileHandle.close()
